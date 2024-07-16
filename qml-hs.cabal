@@ -32,6 +32,7 @@ library
                       Graphics.UI.Qml.Internal.QHash
                       Graphics.UI.Qml.Internal.QResource
                       Graphics.UI.Qml.Internal.QUrl
+                      Graphics.UI.Qml.Internal.QDeclarative
     build-depends:    base ^>=4.17.2.1
     build-tool-depends: hsc2hs:hsc2hs
     pkgconfig-depends:  DOtherSide
