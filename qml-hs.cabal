@@ -1,9 +1,9 @@
 cabal-version:   3.0
 name:            qml-hs
 version:         0.1.0.0
-license:         NONE
-author:          Unknown
-maintainer:      Unknown
+license:         LGPL-3.0-or-later
+author:          James Hobson
+maintainer:      James Hobson
 build-type:      Simple
 extra-doc-files: CHANGELOG.md
 
