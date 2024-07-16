@@ -1,5 +1,5 @@
 
-module Graphics.UI.Qml.Internal.QmodelIndex where
+module Graphics.UI.Qml.Internal.QModelIndex where
 
 import Foreign.C
 import Foreign.Ptr
