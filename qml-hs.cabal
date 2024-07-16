@@ -27,6 +27,7 @@ library
                       Graphics.UI.Qml.Internal.QAbstractListModel
                       Graphics.UI.Qml.Internal.QAbstractTableModel
                       Graphics.UI.Qml.Internal.QAbstractItemModel
+                      Graphics.UI.Qml.Internal.QObject
     build-depends:    base ^>=4.17.2.1
     build-tool-depends: hsc2hs:hsc2hs
     pkgconfig-depends:  DOtherSide
