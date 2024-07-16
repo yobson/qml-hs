@@ -1,0 +1,33 @@
+cabal-version:   3.0
+name:            qml-hs
+version:         0.1.0.0
+license:         NONE
+author:          Unknown
+maintainer:      Unknown
+build-type:      Simple
+extra-doc-files: CHANGELOG.md
+
+common warnings
+    ghc-options: -Wall
+
+library
+    import:           warnings
+    exposed-modules:  Graphics.UI.Qml.Internal.Types
+                      Graphics.UI.Qml.Internal.QGuiApplication
+                      Graphics.UI.Qml.Internal.QApplication
+                      Graphics.UI.Qml.Internal.QQmlApplicationEngine
+                      Graphics.UI.Qml.Internal.QQuickImageProvider
+                      Graphics.UI.Qml.Internal.QPixmap
+                      Graphics.UI.Qml.Internal.QQuickStyle
+                      Graphics.UI.Qml.Internal.QQuickView
+                      Graphics.UI.Qml.Internal.QQmlContext
+                      Graphics.UI.Qml.Internal.String
+                      Graphics.UI.Qml.Internal.QVariant
+                      Graphics.UI.Qml.Internal.QMetaObject
+                      Graphics.UI.Qml.Internal.QAbstractListModel
+                      Graphics.UI.Qml.Internal.QAbstractTableModel
+    build-depends:    base ^>=4.17.2.1
+    build-tool-depends: hsc2hs:hsc2hs
+    pkgconfig-depends:  DOtherSide
+    hs-source-dirs:   src
+    default-language: Haskell2010
