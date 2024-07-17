@@ -1,8 +1,8 @@
-{-# LANGUAGE FlexibleInstances, UndecidableInstances #-}
+{-# LANGUAGE FlexibleInstances, TypeApplications #-}
 
 module Graphics.UI.Qml.LowLevel.QVariant where
 
--- import Foreign.Ptr
+import Foreign.C
 import Foreign.ForeignPtr
 
 import qualified Graphics.UI.Qml.Internal.QVariant as Raw
@@ -13,11 +13,67 @@ type QVariant = ForeignPtr Raw.DosQVariant
 class IsQVariant a where
     fromQVariant :: QVariant -> IO a
     toQVarient :: a -> IO QVariant
+    setQVarient :: QVariant -> a -> IO ()
 
-instance Integral a => IsQVariant a where
-    fromQVariant var = withForeignPtr var
-        (fmap fromIntegral . Raw.toInt)
+instance IsQVariant CString where
+    fromQVariant var = withForeignPtr var Raw.toString
 
-    toQVarient var = do
-        ptr <- Raw.createInt $ fromIntegral var
+    toQVarient str = do
+        ptr <- Raw.createString str
         newForeignPtr Raw.finalizer ptr
+
+    setQVarient var str = withForeignPtr var $ \ptr ->
+        Raw.setString ptr str
+
+instance IsQVariant String where
+    fromQVariant var = fromQVariant var >>= peekCString
+    toQVarient str = newCString str >>= toQVarient
+    setQVarient var str = do
+        cstr <- newCString str
+        setQVarient var cstr
+
+instance IsQVariant CInt where
+    fromQVariant var = withForeignPtr var Raw.toInt
+
+    toQVarient cint = do
+        ptr <- Raw.createInt cint
+        newForeignPtr Raw.finalizer ptr
+
+    setQVarient var cint = withForeignPtr var $ \ptr ->
+        Raw.setInt ptr cint
+
+instance IsQVariant Int where
+    fromQVariant var = fromIntegral <$> fromQVariant @CInt var
+
+    toQVarient = toQVarient @CInt . fromIntegral
+
+    setQVarient var = setQVarient @CInt var . fromIntegral
+
+instance IsQVariant CBool where
+    fromQVariant var = withForeignPtr var Raw.toBool
+
+    toQVarient b = do
+        ptr <- Raw.createBool b
+        newForeignPtr Raw.finalizer ptr
+
+    setQVarient var b = withForeignPtr var $ \ptr ->
+        Raw.setBool ptr b
+
+bool2cbool :: Bool -> CBool
+bool2cbool True  = 1
+bool2cbool False = 0
+
+cbool2bool :: CBool -> Bool
+cbool2bool 0 = False
+cbool2bool _ = True
+
+instance IsQVariant Bool where
+    fromQVariant var = cbool2bool <$> fromQVariant var
+
+    toQVarient = toQVarient . bool2cbool
+
+    setQVarient var = setQVarient var . bool2cbool
+
+
+-- TODO How to do arrays? As QVariant or QVarient Array?
+-- TODO QObject

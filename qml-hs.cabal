@@ -35,8 +35,20 @@ library
                       Graphics.UI.Qml.Internal.QDeclarative
                       Graphics.UI.Qml.Internal.QPointer
                       Graphics.UI.Qml.LowLevel.QVariant
-    build-depends:    base ^>=4.17.2.1
+                      Graphics.UI.Qml.LowLevel.QApplication
+                      Graphics.UI.Qml.LowLevel.QQmlApplicationEngine
+    build-depends:    base ^>=4.17.2.1,
+                      bytestring
     build-tool-depends: hsc2hs:hsc2hs
     pkgconfig-depends:  DOtherSide
     hs-source-dirs:   src
     default-language: Haskell2010
+
+
+executable testbench
+    import warnings
+    main-is: Main.hs
+    hs-source-dirs: test
+    default-language: Haskell2010
+    build-depends: base, qml-hs
+    ghc-options: -threaded
