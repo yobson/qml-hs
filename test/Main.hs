@@ -17,6 +17,9 @@ viewController s = rootObject "haskell" $ do
   qSlot "hello"
     (CType @'[])
     (putStrLn "Hello" >> return Nop)
+  qSlot "numberTest"
+    (CType @'[Int])
+    (\n -> print n >> return Nop)
   qSlot "nameage" 
     (CType @[String,Int]) 
     (\name age -> do

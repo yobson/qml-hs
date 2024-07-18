@@ -19,7 +19,7 @@ ApplicationWindow {
       
       Button {
           text: "Hello World"
-          onClicked: haskell.nameage(nameBox.text, 25)
+          onClicked: haskell.nameage(nameBox.text , 42)
       }
     }
 }

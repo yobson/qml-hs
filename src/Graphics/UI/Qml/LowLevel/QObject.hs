@@ -28,15 +28,13 @@ objectCallback cbm = mkCallBack $ \_ slotName args vars -> do
   sltnmC <- QV.toString slotName
   sltnm  <- peekCString sltnmC
   SV.delete sltnmC
-  vfargs <- peekArray (fromIntegral args) vars
-  vargs  <- mapM newForeignPtr_ vfargs
-  QV.setInt (head vfargs) 0
+  vargs <- peekArray (fromIntegral args) vars
   case Map.lookup sltnm cbm of
-    Just chan -> do
+    Just (chan, ret) -> do
       atomically $ writeTChan chan $ tail vargs
-      return ()
+      atomically $ readTChan ret
     Nothing -> return ()
-  return ()
+  QV.setInt (head vargs) 0
 
 foreign import ccall "wrapper" mkCallBack 
   :: (Ptr () -> Ptr Raw.DosQVariant -> CInt -> Ptr (Ptr Raw.DosQVariant) -> IO ())

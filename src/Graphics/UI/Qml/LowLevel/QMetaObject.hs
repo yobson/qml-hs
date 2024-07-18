@@ -16,6 +16,8 @@ import Control.Concurrent
 import Control.Concurrent.STM
 
 import qualified Graphics.UI.Qml.Internal.QObject as Q
+import qualified Graphics.UI.Qml.Internal.QVariant as QV
+import qualified Graphics.UI.Qml.Internal.String as QS
 import qualified Graphics.UI.Qml.Internal.QMetaObject as Raw
 import qualified Graphics.UI.Qml.Internal.Types as Raw
 import qualified Data.Map.Strict as Map
@@ -31,7 +33,7 @@ data CType (a :: [Type]) = CType
 
 class IsQMetaType (ty :: [Type]) where
   qMetaType :: CType ty -> [CInt]
-  invoke    :: Slot ty e -> [QVariant] -> IO e
+  invoke    :: Slot ty e -> [Ptr Raw.DosQVariant] -> IO e
 
 instance IsQMetaType '[] where
   qMetaType _ = []
@@ -40,22 +42,23 @@ instance IsQMetaType '[] where
 instance (IsQMetaType xs) => IsQMetaType (Int:xs) where
   qMetaType _ = 2 : qMetaType (CType @xs)
   invoke (Slot n _ e) (y:ys) = do
-    i <- fromQVariant y
+    i <- fromIntegral <$> QV.toInt y
     invoke (Slot n (CType @xs) (e i)) ys
   invoke (Slot n _ _) _ = error $ "Slot " <> n <> " Expected int"
 
 instance (IsQMetaType xs) => IsQMetaType (Bool:xs) where
   qMetaType _ = 1 : qMetaType (CType @xs)
   invoke (Slot n _ e) (y:ys) = do
-    i <- fromQVariant y
+    i <- cbool2bool <$> QV.toBool y
     invoke (Slot n (CType @xs) (e i)) ys
   invoke (Slot n _ _) _ = error $ "Slot " <> n <> " Expected bool"
 
 instance (IsQMetaType xs) => IsQMetaType (String:xs) where
   qMetaType _ = 10 : qMetaType (CType @xs)
   invoke (Slot n _ e) (y:ys) = do
-    print y
-    i <- fromQVariant y
+    ptr <- QV.toString y
+    i <- peekCString ptr
+    QS.delete ptr
     invoke (Slot n (CType @xs) (e i)) ys
   invoke (Slot n _ _) _ = error $ "Slot " <> n <> " Expected string"
 
@@ -66,7 +69,7 @@ data VSlot e = forall ty . IsQMetaType ty => VSlot (Slot ty e)
 
 data Prop = forall a . (IsQVariant a) => Prop String a
 
-type CallBackMap = Map.Map String (TChan [QVariant])
+type CallBackMap = Map.Map String (TChan [Ptr Raw.DosQVariant], TChan ())
 
 data QMetaObject = QMetaObject
   { qMetaObjectPtr :: ForeignPtr Raw.DosQMetaObject
@@ -86,11 +89,14 @@ newSlotDef echan (VSlot slot@(Slot name t _)) = do
   pParams <- mallocArray (length metaTypes)
   pokeArray pParams params
   argChan <- atomically newTChan
-  let m = Map.singleton name argChan
+  retChan <- atomically newTChan
+  let m = Map.singleton name (argChan, retChan)
   _ <- forkIO $ fix $ \loop -> do
     args <- atomically $ readTChan argChan
     e <- invoke slot args
-    atomically $ writeTChan echan e
+    atomically $ do
+      writeTChan echan e
+      writeTChan retChan ()
     loop
   return (Raw.SlotDefinition cname 43 (fromIntegral $ length metaTypes) pParams, m)
 
