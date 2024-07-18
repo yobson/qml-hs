@@ -8,11 +8,14 @@ type St = Int
 data Event = Incr | Decr | Nop
 
 viewController :: St -> QViewModel Event
-viewController s = rootObject "logic" $ do
+viewController s = rootObject "haskell" $ do
   -- qSlot "increment" (CType @'[])
   --   (return Incr)
   -- qSlot "decrement" (CType @'[])
   --   (return Decr)
+  qSlot "hello"
+    (CType @'[])
+    (putStrLn "Hello" >> return Nop)
   qSlot "nameage" 
     (CType @[String,Int]) 
     (\name age -> do

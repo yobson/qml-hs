@@ -101,14 +101,20 @@ newQMetaObject echan name slots = do
       maps     = Map.unions $ map snd slotDefsMap
   slotBuffer <- mallocArray count
   pokeArray slotBuffer slotDefs
+  pRawSigsDefs <- malloc
   pRawSlotDefs <- malloc
+  pRawPropDefs <- malloc
+  poke pRawSigsDefs $ Raw.SignalDefinitions 0 nullPtr
   poke pRawSlotDefs $ Raw.SlotDefinitions (fromIntegral count) slotBuffer
+  poke pRawPropDefs $ Raw.PropertyDefinitions 0 nullPtr
   cname <- newCString name
   staticMetaObject <- Q.qMetaObject
-  ptr <- Raw.create staticMetaObject cname nullPtr pRawSlotDefs nullPtr
-  fptr <- newForeignPtr Raw.finalizer ptr
+  ptr <- Raw.create staticMetaObject cname pRawSigsDefs pRawSlotDefs pRawPropDefs
+  fptr <- F.newForeignPtr ptr (Raw.delete ptr)
   F.addForeignPtrFinalizer fptr $ do
     mapM_ (free . Raw.sltParameters) slotDefs
+    free pRawSigsDefs
     free pRawSlotDefs
+    free pRawPropDefs
     free slotBuffer
   return $ QMetaObject fptr maps

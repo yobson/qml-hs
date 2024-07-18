@@ -25,6 +25,8 @@ import Graphics.UI.Qml.LowLevel.QQmlApplicationEngine
 import Control.Monad.State
 import Control.Concurrent.STM
 
+import Foreign.ForeignPtr
+
 data QViewModel e = QViewModel
   { objName :: String
   , slots :: [VSlot e]
@@ -48,15 +50,16 @@ runQApplication (QmlApp qf qu qvm) i = do
   let (QViewModel name slts _ _) = qvm i
   eChan <- atomically newTChan
   metaObj <- newQMetaObject eChan name slts
-  qobj <- Q.newQObject name metaObj >>= Q.objToVariant
+  qobj <- Q.newQObject name metaObj
+  qobjv <- Q.objToVariant qobj
   app <- initQApplication
   ctx <- newQmlAppEngine app
 
-  setContextProperty ctx "hs" qobj
+  setContextProperty ctx name qobjv
   loadQml ctx qf
 
   execQApplication app
-  undefined
+  touchForeignPtr $ Q.rawObj qobj
 
 rootObject :: String -> QObject e a -> QViewModel e
 rootObject name (QObj st) = execState st (QViewModel name [] [] [])

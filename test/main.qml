@@ -10,10 +10,8 @@ ApplicationWindow {
 
     Component.onCompleted: visible = true
 
-    ColumnLayout {
-        anchors.fill: parent
-        SpinBox { value: qVar1}
-        TextField { text: qVar2}
-        CheckBox { checked: qVar3}
-    }
+        Button {
+            text: "Hello World"
+            onClicked: haskell.hello()
+        }
 }
