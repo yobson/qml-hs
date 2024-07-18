@@ -102,7 +102,8 @@ newQMetaObject echan name slots = do
   pokeArray slotBuffer slotDefs
   pRawSlotDefs <- malloc
   poke pRawSlotDefs $ Raw.SlotDefinitions (fromIntegral count) slotBuffer
-  ptr <- withCString name $ \cname -> Raw.create nullPtr cname nullPtr pRawSlotDefs nullPtr
+  cname <- newCString name
+  ptr <- Raw.create nullPtr cname nullPtr pRawSlotDefs nullPtr
   fptr <- newForeignPtr Raw.finalizer ptr
   F.addForeignPtrFinalizer fptr $ do
     mapM_ (free . Raw.sltParameters) slotDefs
