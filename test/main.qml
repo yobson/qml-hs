@@ -16,6 +16,10 @@ ApplicationWindow {
         id: nameBox
         placeholderText: qsTr("Enter name")
       }
+
+      Label {
+        text: haskell.value
+      }
       
       Button {
           text: "Hello World"

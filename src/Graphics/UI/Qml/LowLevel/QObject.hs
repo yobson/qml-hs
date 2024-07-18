@@ -23,8 +23,8 @@ data QObject = QObject
   , rawObj  :: ForeignPtr Raw.DosQObject
   }
 
-objectCallback :: CallBackMap -> IO Raw.DObjectCallback
-objectCallback cbm = mkCallBack $ \_ slotName args vars -> do
+objectCallback :: CallBackMap -> ValsMap -> IO Raw.DObjectCallback
+objectCallback cbm valsm = mkCallBack $ \_ slotName args vars -> do
   sltnmC <- QV.toString slotName
   sltnm  <- peekCString sltnmC
   SV.delete sltnmC
@@ -33,8 +33,13 @@ objectCallback cbm = mkCallBack $ \_ slotName args vars -> do
     Just (chan, ret) -> do
       atomically $ writeTChan chan $ tail vargs
       atomically $ readTChan ret
-    Nothing -> return ()
-  QV.setInt (head vargs) 0
+    Nothing -> case Map.lookup sltnm valsm of
+                 Just nm -> do
+                   val <- readTVarIO nm
+                   withForeignPtr val $
+                     QV.assign (head vargs)
+                   return ()
+                 Nothing -> QV.setInt (head vargs) 0
 
 foreign import ccall "wrapper" mkCallBack 
   :: (Ptr () -> Ptr Raw.DosQVariant -> CInt -> Ptr (Ptr Raw.DosQVariant) -> IO ())
@@ -52,8 +57,8 @@ objToVariant (QObject mo ro) = do
 
 
 newQObject :: String -> QMetaObject -> IO QObject
-newQObject name qmo@(QMetaObject mo cbm) = withForeignPtr mo $ \o -> do
-  callback <- objectCallback cbm
+newQObject name qmo@(QMetaObject mo cbm _ vm) = withForeignPtr mo $ \o -> do
+  callback <- objectCallback cbm vm
   className <- newCString name
   ptr <- Raw.create (plusPtr nullPtr 1) o callback
   Raw.setObjectName ptr className

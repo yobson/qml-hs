@@ -1,4 +1,4 @@
-{-# LANGUAGE FlexibleInstances, TypeApplications #-}
+{-# LANGUAGE FlexibleInstances, ScopedTypeVariables #-}
 
 module Graphics.UI.Qml.LowLevel.QVariant where
 
@@ -15,6 +15,7 @@ class IsQVariant a where
     fromQVariant :: QVariant -> IO a
     toQVarient :: a -> IO QVariant
     setQVarient :: QVariant -> a -> IO ()
+    metaType :: a -> CInt
 
 instance IsQVariant CString where
     fromQVariant var = withForeignPtr var $ \ptr -> do
@@ -26,6 +27,7 @@ instance IsQVariant CString where
 
     setQVarient var str = withForeignPtr var $ \ptr ->
         Raw.setString ptr str
+    metaType _ = 10
 
 instance IsQVariant String where
     fromQVariant var = do
@@ -37,6 +39,7 @@ instance IsQVariant String where
     toQVarient str = withCString str toQVarient
     setQVarient var str = withCString str $ \cstr ->
         setQVarient var cstr
+    metaType _ = 10
 
 instance IsQVariant Int where
     fromQVariant var = fromIntegral <$> withForeignPtr var Raw.toInt
@@ -47,6 +50,7 @@ instance IsQVariant Int where
 
     setQVarient var cint = withForeignPtr var $ \ptr ->
         Raw.setInt ptr $ fromIntegral cint
+    metaType _ = 2
 
 instance IsQVariant CBool where
     fromQVariant var = withForeignPtr var Raw.toBool
@@ -57,6 +61,7 @@ instance IsQVariant CBool where
 
     setQVarient var b = withForeignPtr var $ \ptr ->
         Raw.setBool ptr b
+    metaType _ = 1
 
 instance IsQVariant QVariant where
   fromQVariant = return
@@ -66,6 +71,27 @@ instance IsQVariant QVariant where
   setQVarient var b = withForeignPtr var $ \ptr ->
     withForeignPtr b $ \other ->
       Raw.assign ptr other
+  metaType _ = 41
+
+sameVar :: (IsQVariant a, IsQVariant b) => a -> b -> IO Bool
+sameVar x y = do
+  let mx = metaType x
+      my = metaType y
+  if mx /= my 
+     then return False
+     else case mx of
+            2 -> do
+              (sx :: Int) <- toQVarient x >>= fromQVariant
+              (sy :: Int) <- toQVarient y >>= fromQVariant
+              return (sx == sy)
+            1 -> do
+              (sx :: Bool) <- toQVarient x >>= fromQVariant
+              (sy :: Bool) <- toQVarient y >>= fromQVariant
+              return (sx == sy)
+            _ -> do
+              (sx :: String) <- toQVarient x >>= fromQVariant
+              (sy :: String) <- toQVarient y >>= fromQVariant
+              return (sx == sy)
 
 bool2cbool :: Bool -> CBool
 bool2cbool True  = 1
@@ -81,6 +107,7 @@ instance IsQVariant Bool where
     toQVarient = toQVarient . bool2cbool
 
     setQVarient var = setQVarient var . bool2cbool
+    metaType _ = 1
 
 
 -- TODO How to do arrays? As QVariant or QVarient Array?

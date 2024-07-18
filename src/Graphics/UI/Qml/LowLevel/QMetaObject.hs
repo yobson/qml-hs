@@ -71,9 +71,15 @@ data Prop = forall a . (IsQVariant a) => Prop String a
 
 type CallBackMap = Map.Map String (TChan [Ptr Raw.DosQVariant], TChan ())
 
+type PropsMap = Map.Map String (TChan QVariant)
+
+type ValsMap = Map.Map String (TVar QVariant)
+
 data QMetaObject = QMetaObject
   { qMetaObjectPtr :: ForeignPtr Raw.DosQMetaObject
   , callbackMap    :: CallBackMap
+  , propMap        :: PropsMap
+  , valsMap        :: ValsMap
   }
 
 newParameterDef :: CInt -> IO Raw.ParameterDefinition
@@ -100,28 +106,65 @@ newSlotDef echan (VSlot slot@(Slot name t _)) = do
     loop
   return (Raw.SlotDefinition cname 43 (fromIntegral $ length metaTypes) pParams, m)
 
-newQMetaObject :: TChan e -> String -> [VSlot e] -> IO QMetaObject
-newQMetaObject echan name slots = do
+newSignalDef :: Ptr Raw.DosQObject -> Prop -> IO (Raw.SignalDefinition, Map.Map String (TChan QVariant))
+newSignalDef qo (Prop name val) = do
+  param <- newParameterDef (metaType val)
+  pparam <- mallocArray 1
+  pokeArray pparam [param]
+  notifyName <- newCString $ "notify" <> name
+  argChan <- atomically newTChan
+  _ <- forkIO $ do
+    arr <- mallocArray 1
+    fix $ \loop -> do
+      newVal <- atomically $ readTChan argChan
+      withForeignPtr newVal $ \v -> do
+        pokeArray arr [v]
+        putStrLn $ "New value for:" <> name
+        Q.signalEmit qo notifyName 1 arr
+      loop
+  return (Raw.SignalDefinition notifyName 1 pparam, Map.singleton name argChan)
+
+newPropertyDef :: Prop -> IO Raw.PropertyDefinition
+newPropertyDef (Prop name v) = do
+  propName <- newCString name
+  propNoti <- newCString $ "notify" <> name
+  propGet  <- newCString $ "get" <> name
+  let propMt = metaType v
+  return $ Raw.PropertyDefinition propName propMt propGet nullPtr propNoti
+
+newQMetaObject :: ValsMap -> TChan e -> String -> [Prop] -> [VSlot e] -> IO QMetaObject
+newQMetaObject vmap echan name props slots = do
   let count     = length slots
   slotDefsMap <- mapM (newSlotDef echan) slots
   let slotDefs = map fst slotDefsMap
       maps     = Map.unions $ map snd slotDefsMap
+  sigsDefsMap <- mapM (newSignalDef nullPtr) props
+  let sigsDefs = map fst sigsDefsMap
+      sigs     = Map.unions $ map snd sigsDefsMap
+  propDefs    <- mapM newPropertyDef props
   slotBuffer <- mallocArray count
+  sigsBuffer <- mallocArray (fromIntegral $ length sigs)
+  propBuffer <- mallocArray (fromIntegral $ length propDefs)
   pokeArray slotBuffer slotDefs
+  pokeArray sigsBuffer sigsDefs
+  pokeArray propBuffer propDefs
   pRawSigsDefs <- malloc
   pRawSlotDefs <- malloc
   pRawPropDefs <- malloc
-  poke pRawSigsDefs $ Raw.SignalDefinitions 0 nullPtr
+  poke pRawSigsDefs $ Raw.SignalDefinitions (fromIntegral $ length sigsDefs) sigsBuffer
   poke pRawSlotDefs $ Raw.SlotDefinitions (fromIntegral count) slotBuffer
-  poke pRawPropDefs $ Raw.PropertyDefinitions 0 nullPtr
+  poke pRawPropDefs $ Raw.PropertyDefinitions (fromIntegral $ length propDefs) propBuffer
   cname <- newCString name
   staticMetaObject <- Q.qMetaObject
   ptr <- Raw.create staticMetaObject cname pRawSigsDefs pRawSlotDefs pRawPropDefs
   fptr <- F.newForeignPtr ptr (Raw.delete ptr)
   F.addForeignPtrFinalizer fptr $ do
     mapM_ (free . Raw.sltParameters) slotDefs
+    mapM_ (free . Raw.sdParameterDefinition) sigsDefs
     free pRawSigsDefs
     free pRawSlotDefs
     free pRawPropDefs
     free slotBuffer
-  return $ QMetaObject fptr maps
+    free sigsBuffer
+    free propBuffer
+  return $ QMetaObject fptr maps sigs vmap

@@ -22,8 +22,11 @@ import qualified Graphics.UI.Qml.LowLevel.QObject as Q
 import Graphics.UI.Qml.LowLevel.QMetaObject
 import Graphics.UI.Qml.LowLevel.QApplication
 import Graphics.UI.Qml.LowLevel.QQmlApplicationEngine
+import Control.Monad.Fix
 import Control.Monad.State
+import Control.Concurrent
 import Control.Concurrent.STM
+import qualified Data.Map as Map
 
 import Foreign.ForeignPtr
 
@@ -45,11 +48,21 @@ data App e s = QmlApp
   , appViewModel :: s -> QViewModel e
   }
 
-runQApplication :: App e s -> s -> IO ()
+mkPropsMap :: [Prop] -> IO (Map.Map String (TVar QVariant))
+mkPropsMap props = Map.fromList <$> mapM go props
+  where go (Prop n v) = do
+              var <- toQVarient v
+              tvar <- newTVarIO var
+              return ("get" <> n, tvar)
+
+runQApplication :: (Show s) => App e s -> s -> IO ()
 runQApplication (QmlApp qf qu qvm) i = do
-  let (QViewModel name slts _ _) = qvm i
+  let vm@(QViewModel name slts props _) = qvm i
   eChan <- atomically newTChan
-  metaObj <- newQMetaObject eChan name slts
+  pm <- mkPropsMap props
+  st <- newTVarIO i
+  lastVm <- newTVarIO vm
+  metaObj <- newQMetaObject pm eChan name props slts
   qobj <- Q.newQObject name metaObj
   qobjv <- Q.objToVariant qobj
   app <- initQApplication
@@ -58,8 +71,37 @@ runQApplication (QmlApp qf qu qvm) i = do
   setContextProperty ctx name qobjv
   loadQml ctx qf
 
+  _ <- forkIO $ fix $ \loop -> do
+    e <- atomically $ readTChan eChan
+    stt <- readTVarIO st
+    newSt <- execStateT (qu e) stt
+    print newSt
+    atomically $ writeTVar st newSt
+    oldVm <- readTVarIO lastVm
+    let newVm = qvm newSt
+        propM = propMap metaObj
+    diff <- diffViewModels oldVm newVm
+    forM_ diff $ \(n, newVal) -> do
+      case Map.lookup n propM of
+        Just chan -> atomically $ writeTChan chan newVal
+        Nothing -> return ()
+    loop
+
   execQApplication app
   touchForeignPtr $ Q.rawObj qobj
+
+-- Completely Stupid
+diffViewModels :: QViewModel e -> QViewModel e -> IO [(String, QVariant)]
+diffViewModels (QViewModel _ _ [] _) (QViewModel _ _ [] _) = return []
+diffViewModels (QViewModel _ _ ((Prop n v1):xs) _) (QViewModel _ _ ((Prop _ v2):ys) _) = do 
+  theSame <- sameVar v1 v2
+  if theSame 
+     then diffViewModels (QViewModel "" [] xs []) (QViewModel "" [] ys [])
+     else do
+      nxt <- diffViewModels (QViewModel "" [] xs []) (QViewModel "" [] ys [])
+      v <- toQVarient v2
+      return $ (n,v) : nxt
+diffViewModels _ _ = return []
 
 rootObject :: String -> QObject e a -> QViewModel e
 rootObject name (QObj st) = execState st (QViewModel name [] [] [])
