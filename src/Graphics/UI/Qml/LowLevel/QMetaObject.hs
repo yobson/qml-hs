@@ -15,6 +15,7 @@ import Control.Monad.Fix
 import Control.Concurrent
 import Control.Concurrent.STM
 
+import qualified Graphics.UI.Qml.Internal.QObject as Q
 import qualified Graphics.UI.Qml.Internal.QMetaObject as Raw
 import qualified Graphics.UI.Qml.Internal.Types as Raw
 import qualified Data.Map.Strict as Map
@@ -103,7 +104,8 @@ newQMetaObject echan name slots = do
   pRawSlotDefs <- malloc
   poke pRawSlotDefs $ Raw.SlotDefinitions (fromIntegral count) slotBuffer
   cname <- newCString name
-  ptr <- Raw.create nullPtr cname nullPtr pRawSlotDefs nullPtr
+  staticMetaObject <- Q.qMetaObject
+  ptr <- Raw.create staticMetaObject cname nullPtr pRawSlotDefs nullPtr
   fptr <- newForeignPtr Raw.finalizer ptr
   F.addForeignPtrFinalizer fptr $ do
     mapM_ (free . Raw.sltParameters) slotDefs
