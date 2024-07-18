@@ -6,6 +6,7 @@ import Foreign.C
 import Foreign.ForeignPtr
 
 import qualified Graphics.UI.Qml.Internal.QVariant as Raw
+import qualified Graphics.UI.Qml.Internal.String as DS
 import qualified Graphics.UI.Qml.Internal.Types as Raw
 
 type QVariant = ForeignPtr Raw.DosQVariant
@@ -16,7 +17,8 @@ class IsQVariant a where
     setQVarient :: QVariant -> a -> IO ()
 
 instance IsQVariant CString where
-    fromQVariant var = withForeignPtr var Raw.toString
+    fromQVariant var = withForeignPtr var $ \ptr -> do
+      Raw.toString ptr
 
     toQVarient str = do
         ptr <- Raw.createString str
@@ -26,10 +28,14 @@ instance IsQVariant CString where
         Raw.setString ptr str
 
 instance IsQVariant String where
-    fromQVariant var = fromQVariant var >>= peekCString
-    toQVarient str = newCString str >>= toQVarient
-    setQVarient var str = do
-        cstr <- newCString str
+    fromQVariant var = do
+      cstr <- fromQVariant var
+      str <- peekCString cstr
+      DS.delete cstr
+      return str
+
+    toQVarient str = withCString str toQVarient
+    setQVarient var str = withCString str $ \cstr ->
         setQVarient var cstr
 
 instance IsQVariant Int where

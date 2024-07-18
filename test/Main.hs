@@ -3,6 +3,7 @@
 module Main where
 
 import Graphics.UI.Qml
+import System.IO
 
 type St = Int
 data Event = Incr | Decr | Nop
@@ -31,6 +32,7 @@ update Nop  = return ()
 
 main :: IO ()
 main = do
+  hSetBuffering stdout NoBuffering
   let app = QmlApp
         { qmlFile = "test/main.qml"
         , appUpdate = update

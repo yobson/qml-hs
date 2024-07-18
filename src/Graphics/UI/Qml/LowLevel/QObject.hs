@@ -5,6 +5,7 @@ module Graphics.UI.Qml.LowLevel.QObject where
 import qualified Graphics.UI.Qml.Internal.QObject as Raw
 import qualified Graphics.UI.Qml.Internal.Types as Raw
 import qualified Graphics.UI.Qml.Internal.QVariant as QV
+import qualified Graphics.UI.Qml.Internal.String as SV
 import qualified Data.Map as Map
 
 import Graphics.UI.Qml.LowLevel.QMetaObject
@@ -24,13 +25,15 @@ data QObject = QObject
 
 objectCallback :: CallBackMap -> IO Raw.DObjectCallback
 objectCallback cbm = mkCallBack $ \_ slotName args vars -> do
-  sltNameFPtr <- newForeignPtr_ slotName
-  sltnm <- fromQVariant sltNameFPtr
+  sltnmC <- QV.toString slotName
+  sltnm  <- peekCString sltnmC
+  SV.delete sltnmC
   vfargs <- peekArray (fromIntegral args) vars
   vargs  <- mapM newForeignPtr_ vfargs
+  QV.setInt (head vfargs) 0
   case Map.lookup sltnm cbm of
     Just chan -> do
-      atomically $ writeTChan chan vargs
+      atomically $ writeTChan chan $ tail vargs
       return ()
     Nothing -> return ()
   return ()
@@ -54,7 +57,7 @@ newQObject :: String -> QMetaObject -> IO QObject
 newQObject name qmo@(QMetaObject mo cbm) = withForeignPtr mo $ \o -> do
   callback <- objectCallback cbm
   className <- newCString name
-  ptr <- Raw.create nullPtr o callback
+  ptr <- Raw.create (plusPtr nullPtr 1) o callback
   Raw.setObjectName ptr className
   fptr <- newForeignPtr Raw.finalizer ptr
   return $ QObject qmo fptr

@@ -10,8 +10,16 @@ ApplicationWindow {
 
     Component.onCompleted: visible = true
 
-        Button {
-            text: "Hello World"
-            onClicked: haskell.hello()
-        }
+    ColumnLayout {
+      spacing: 2
+      TextField {
+        id: nameBox
+        placeholderText: qsTr("Enter name")
+      }
+      
+      Button {
+          text: "Hello World"
+          onClicked: haskell.nameage(nameBox.text, 25)
+      }
+    }
 }
