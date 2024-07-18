@@ -54,6 +54,7 @@ instance (IsQMetaType xs) => IsQMetaType (Bool:xs) where
 instance (IsQMetaType xs) => IsQMetaType (String:xs) where
   qMetaType _ = 10 : qMetaType (CType @xs)
   invoke (Slot n _ e) (y:ys) = do
+    print y
     i <- fromQVariant y
     invoke (Slot n (CType @xs) (e i)) ys
   invoke (Slot n _ _) _ = error $ "Slot " <> n <> " Expected string"
