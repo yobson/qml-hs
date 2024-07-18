@@ -4,6 +4,7 @@
 module Graphics.UI.Qml.Internal.Types where
 
 import Foreign.Ptr
+import Foreign.ForeignPtr
 import Foreign.C.Types
 import Foreign.C.String
 import Foreign.Storable

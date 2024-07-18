@@ -1,15 +1,36 @@
+{-# LANGUAGE TypeApplications, DataKinds #-}
+
 module Main where
 
-import Graphics.UI.Qml.LowLevel.QApplication
-import Graphics.UI.Qml.LowLevel.QQmlApplicationEngine
+import Graphics.UI.Qml
 
+type St = Int
+data Event = Incr | Decr | Nop
+
+viewController :: St -> QViewModel Event
+viewController s = rootObject "logic" $ do
+  -- qSlot "increment" (CType @'[])
+  --   (return Incr)
+  -- qSlot "decrement" (CType @'[])
+  --   (return Decr)
+  qSlot "nameage" 
+    (CType @[String,Int]) 
+    (\name age -> do
+        putStrLn $ "Hello " <> name <> " who is " <> show age
+        return Nop)
+  -- qProperty "value" s
+
+
+update :: Event -> Qml St ()
+update Incr = modify (1 +)
+update Decr = modify (1 -)
+update Nop  = return ()
+
+main :: IO ()
 main = do
-    app <- initQApplication
-    ctx <- newQmlAppEngine
-
-    setContextProperty ctx "qVar1" (10 :: Int)
-    setContextProperty ctx "qVar2" "Hello World"
-    setContextProperty ctx "qVar3" False
-    loadQml ctx "test/main.qml"
-
-    execQApplication app (Just ctx)
+  let app = QmlApp
+        { qmlFile = "test/main.qml"
+        , appUpdate = update
+        , appViewModel = viewController
+        }
+  runQApplication app 0

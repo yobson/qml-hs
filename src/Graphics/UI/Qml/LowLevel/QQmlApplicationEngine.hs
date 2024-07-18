@@ -6,32 +6,42 @@ import qualified Graphics.UI.Qml.Internal.QQmlContext as Raw
 import qualified Graphics.UI.Qml.Internal.Types as Raw
 
 import qualified Data.ByteString as BS
+import qualified Foreign.Concurrent as F
+import Graphics.UI.Qml.LowLevel.QApplication
 import Graphics.UI.Qml.LowLevel.QVariant
 
 import Foreign.ForeignPtr
+import Foreign.Ptr
 import Foreign.C
 
-type QmlAppEngine = ForeignPtr Raw.DosQQmlApplicationEngine
+type QmlAppEngine = Ptr Raw.DosQQmlApplicationEngine
 
 foreign import ccall unsafe "string.h strndup"
     strndup :: CString -> CSize -> IO CString
 
-newQmlAppEngine :: IO QmlAppEngine
-newQmlAppEngine = do
+class IsQApplication a where
+  addFinalizerToApp :: a -> IO () -> IO ()
+
+instance IsQApplication QApplication where
+  addFinalizerToApp (QApplication app) = F.addForeignPtrFinalizer app
+
+newQmlAppEngine :: (IsQApplication app) => app -> IO QmlAppEngine
+newQmlAppEngine app = do
     ptr <- Raw.create
-    newForeignPtr Raw.finialiser ptr
+    addFinalizerToApp app (Raw.delete ptr)
+    return ptr
 
 loadQmlRaw :: QmlAppEngine -> BS.ByteString -> IO ()
-loadQmlRaw ae file = withForeignPtr ae $ \ptr ->
+loadQmlRaw ae file =
     BS.useAsCStringLen file $ \(f, len) ->
-        strndup f (fromIntegral len) >>= Raw.loadData ptr
+        strndup f (fromIntegral len) >>= Raw.loadData ae
 
 loadQml :: QmlAppEngine -> FilePath -> IO ()
 loadQml ae path = BS.readFile path >>= loadQmlRaw ae
 
 setContextProperty :: (IsQVariant a) => QmlAppEngine -> String -> a -> IO ()
-setContextProperty eng key val = withForeignPtr eng $ \ptr -> do
-    ctx <- Raw.context ptr
+setContextProperty eng key val = do
+    ctx <- Raw.context eng
     var <- toQVarient val
     withCString key $ \propName ->
         withForeignPtr var $ \rawVar ->

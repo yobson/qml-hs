@@ -37,8 +37,14 @@ library
                       Graphics.UI.Qml.LowLevel.QVariant
                       Graphics.UI.Qml.LowLevel.QApplication
                       Graphics.UI.Qml.LowLevel.QQmlApplicationEngine
-    build-depends:    base ^>=4.17.2.1,
-                      bytestring
+                      Graphics.UI.Qml.LowLevel.QMetaObject
+                      Graphics.UI.Qml.LowLevel.QObject
+                      Graphics.UI.Qml
+    build-depends:    base <5,
+                      bytestring,
+                      mtl,
+                      stm,
+                      containers
     build-tool-depends: hsc2hs:hsc2hs
     pkgconfig-depends:  DOtherSide
     hs-source-dirs:   src
@@ -46,7 +52,7 @@ library
 
 
 executable testbench
-    import warnings
+    import: warnings
     main-is: Main.hs
     hs-source-dirs: test
     default-language: Haskell2010

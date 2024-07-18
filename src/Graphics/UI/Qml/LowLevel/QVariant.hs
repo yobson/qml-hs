@@ -32,22 +32,15 @@ instance IsQVariant String where
         cstr <- newCString str
         setQVarient var cstr
 
-instance IsQVariant CInt where
-    fromQVariant var = withForeignPtr var Raw.toInt
+instance IsQVariant Int where
+    fromQVariant var = fromIntegral <$> withForeignPtr var Raw.toInt
 
     toQVarient cint = do
-        ptr <- Raw.createInt cint
+        ptr <- Raw.createInt $ fromIntegral cint
         newForeignPtr Raw.finalizer ptr
 
     setQVarient var cint = withForeignPtr var $ \ptr ->
-        Raw.setInt ptr cint
-
-instance IsQVariant Int where
-    fromQVariant var = fromIntegral <$> fromQVariant @CInt var
-
-    toQVarient = toQVarient @CInt . fromIntegral
-
-    setQVarient var = setQVarient @CInt var . fromIntegral
+        Raw.setInt ptr $ fromIntegral cint
 
 instance IsQVariant CBool where
     fromQVariant var = withForeignPtr var Raw.toBool
@@ -58,6 +51,15 @@ instance IsQVariant CBool where
 
     setQVarient var b = withForeignPtr var $ \ptr ->
         Raw.setBool ptr b
+
+instance IsQVariant QVariant where
+  fromQVariant = return
+
+  toQVarient = return 
+
+  setQVarient var b = withForeignPtr var $ \ptr ->
+    withForeignPtr b $ \other ->
+      Raw.assign ptr other
 
 bool2cbool :: Bool -> CBool
 bool2cbool True  = 1
