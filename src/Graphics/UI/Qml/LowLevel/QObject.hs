@@ -57,10 +57,11 @@ objToVariant (QObject mo ro) = do
 
 
 newQObject :: String -> QMetaObject -> IO QObject
-newQObject name qmo@(QMetaObject mo cbm _ vm) = withForeignPtr mo $ \o -> do
+newQObject name qmo@(QMetaObject mo cbm _ vm qo) = withForeignPtr mo $ \o -> do
   callback <- objectCallback cbm vm
   className <- newCString name
   ptr <- Raw.create (plusPtr nullPtr 1) o callback
+  atomically $ writeTVar qo ptr
   Raw.setObjectName ptr className
   fptr <- newForeignPtr Raw.finalizer ptr
   return $ QObject qmo fptr

@@ -18,7 +18,7 @@ ApplicationWindow {
       }
 
       Label {
-        text: haskell.value
+        text: parseInt(haskell.counter)
       }
       
       Button {

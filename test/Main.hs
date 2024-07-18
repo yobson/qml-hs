@@ -25,7 +25,7 @@ viewController s = rootObject "haskell" $ do
     (\name age -> do
         putStrLn $ "Hello " <> name <> " who is " <> show age
         return Incr)
-  qProperty "value" s
+  qProperty "counter" s
 
 
 update :: Event -> Qml St ()

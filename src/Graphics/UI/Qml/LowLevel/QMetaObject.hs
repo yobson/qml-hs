@@ -80,6 +80,7 @@ data QMetaObject = QMetaObject
   , callbackMap    :: CallBackMap
   , propMap        :: PropsMap
   , valsMap        :: ValsMap
+  , qobjectBack    :: TVar (Ptr Raw.DosQObject)
   }
 
 newParameterDef :: CInt -> IO Raw.ParameterDefinition
@@ -106,7 +107,15 @@ newSlotDef echan (VSlot slot@(Slot name t _)) = do
     loop
   return (Raw.SlotDefinition cname 43 (fromIntegral $ length metaTypes) pParams, m)
 
-newSignalDef :: Ptr Raw.DosQObject -> Prop -> IO (Raw.SignalDefinition, Map.Map String (TChan QVariant))
+newPropSlotDef :: Prop -> IO Raw.SlotDefinition
+newPropSlotDef (Prop n v) = do
+  cname <- newCString $ "get" <> n
+  pParams <- mallocArray 1
+  pDef <- newParameterDef 39
+  pokeArray pParams [pDef]
+  return $ Raw.SlotDefinition cname (metaType v) 1 pParams
+
+newSignalDef :: TVar (Ptr Raw.DosQObject) -> Prop -> IO (Raw.SignalDefinition, Map.Map String (TChan QVariant))
 newSignalDef qo (Prop name val) = do
   param <- newParameterDef (metaType val)
   pparam <- mallocArray 1
@@ -119,8 +128,9 @@ newSignalDef qo (Prop name val) = do
       newVal <- atomically $ readTChan argChan
       withForeignPtr newVal $ \v -> do
         pokeArray arr [v]
-        putStrLn $ "New value for:" <> name
-        Q.signalEmit qo notifyName 1 arr
+        putStrLn $ "New value for: " <> name
+        q <- readTVarIO qo
+        Q.signalEmit q notifyName 1 arr
       loop
   return (Raw.SignalDefinition notifyName 1 pparam, Map.singleton name argChan)
 
@@ -134,18 +144,20 @@ newPropertyDef (Prop name v) = do
 
 newQMetaObject :: ValsMap -> TChan e -> String -> [Prop] -> [VSlot e] -> IO QMetaObject
 newQMetaObject vmap echan name props slots = do
+  qo <- newTVarIO nullPtr
   let count     = length slots
   slotDefsMap <- mapM (newSlotDef echan) slots
   let slotDefs = map fst slotDefsMap
       maps     = Map.unions $ map snd slotDefsMap
-  sigsDefsMap <- mapM (newSignalDef nullPtr) props
+  propSlots <- mapM newPropSlotDef props
+  sigsDefsMap <- mapM (newSignalDef qo) props
   let sigsDefs = map fst sigsDefsMap
       sigs     = Map.unions $ map snd sigsDefsMap
   propDefs    <- mapM newPropertyDef props
-  slotBuffer <- mallocArray count
+  slotBuffer <- mallocArray (count + length propSlots)
   sigsBuffer <- mallocArray (fromIntegral $ length sigs)
   propBuffer <- mallocArray (fromIntegral $ length propDefs)
-  pokeArray slotBuffer slotDefs
+  pokeArray slotBuffer (slotDefs <> propSlots)
   pokeArray sigsBuffer sigsDefs
   pokeArray propBuffer propDefs
   pRawSigsDefs <- malloc
@@ -167,4 +179,4 @@ newQMetaObject vmap echan name props slots = do
     free slotBuffer
     free sigsBuffer
     free propBuffer
-  return $ QMetaObject fptr maps sigs vmap
+  return $ QMetaObject fptr maps sigs vmap qo
