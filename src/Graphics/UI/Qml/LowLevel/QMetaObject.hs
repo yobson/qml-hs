@@ -110,10 +110,10 @@ newSlotDef echan (VSlot slot@(Slot name t _)) = do
 newPropSlotDef :: Prop -> IO Raw.SlotDefinition
 newPropSlotDef (Prop n v) = do
   cname <- newCString $ "get" <> n
-  pParams <- mallocArray 1
-  pDef <- newParameterDef 39
-  pokeArray pParams [pDef]
-  return $ Raw.SlotDefinition cname (metaType v) 1 pParams
+  pParams <- mallocArray 0
+  --pDef <- newParameterDef 39
+  pokeArray pParams []
+  return $ Raw.SlotDefinition cname (metaType v) 0 pParams
 
 newSignalDef :: TVar (Ptr Raw.DosQObject) -> Prop -> IO (Raw.SignalDefinition, Map.Map String (TChan QVariant))
 newSignalDef qo (Prop name val) = do
