@@ -7,22 +7,26 @@ import Control.Monad.Fix
 import Control.Concurrent
 import Control.Concurrent.STM
 
-type St = Int
-data Event = Incr | Decr | Nop
+type State = (Int, String)
+data Event = Incr | Decr | Welcome String Int | Nop
 
-viewController :: St -> QViewModel Event
-viewController s = rootObject "hs" $ do
-  qProperty "counter" s
+viewController :: State -> QViewModel Event
+viewController (count, msg) = rootObject "hs" $ do
+  qProperty "counter" count
+  qProperty "welcomeMsg" msg
   qSlot "increment" (CType @'[])
     (return Incr)
   qSlot "decrement" (CType @'[])
     (return Decr)
+  qSlot "welcome" (CType @[String, Int])
+    (\name age -> return $ Welcome name age)
 
 
-update :: Event -> Qml St ()
-update Incr = modify (\x -> x + 1)
-update Decr = modify (\x -> x - 1)
-update Nop  = return ()
+update :: Event -> Qml State ()
+update Incr               = modify (\(x,m) -> (x + 1,m))
+update Decr               = modify (\(x,m) -> (x - 1,m))
+update (Welcome name age) = modify (\(x,_) -> (x,"Welcome " <> name <> " who is " <> show age))
+update Nop                = return ()
 
 main :: IO ()
 main = do
@@ -38,4 +42,4 @@ main = do
         , appViewModel = viewController
         , externalEvents = Just eChan
         }
-  runQApplication app 0
+  runQApplication app (0, "Fill out details")

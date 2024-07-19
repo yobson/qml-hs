@@ -1,44 +1,69 @@
-/*
-This is a UI file (.ui.qml) that is intended to be edited in Qt Design Studio only.
-It is supposed to be strictly declarative and only uses a subset of QML. If you edit
-this file manually, you might introduce QML code that is not supported by Qt Design Studio.
-Check out https://doc.qt.io/qtcreator/creator-quick-ui-forms.html for details on .ui.qml files.
-*/
-
 import QtQuick
 import QtQuick.Layouts
 import QtQuick.Controls
 
 Window {
-    visible: true
-    width: 200
-    height: 55
-    title: "Example"
-    
+  visible: true
+  width: 300
+  height: 100
+  title: "Example"
+
+  ColumnLayout {
+    anchors.fill: parent
+    spacing: 6
+
     RowLayout {
-        id: row
-        anchors.fill: parent
-        spacing: 6
-        
-        
-        Button {
-            id: button
-            text: "-"
-            Layout.alignment: Qt.AlignHCenter | Qt.AlignVCenter
-            onClicked: hs.decrement()
-        }
-        Label {
-            Layout.alignment: Qt.AlignHCenter | Qt.AlignVCenter
-            id: label
-            text: "Value is: " + parseInt(hs.counter)
-        }
-        
-        Button {
-            id: button1
-            text: "+"
-            Layout.alignment: Qt.AlignHCenter | Qt.AlignVCenter
-            onClicked: hs.increment()
-        }
+      Layout.fillWidth: true
+      TextField {
+        Layout.fillWidth: true
+        id: name
+        placeholderText: "Name"
+      }
+
+      TextField {
+        id: age
+        placeholderText: "Age"
+        validator: IntValidator {bottom: 0}
+        Layout.fillWidth: true
+      }
+
+      Button {
+        text: "Welcome me"
+        onClicked: hs.welcome(name.text, age.text)
+      }
     }
+
+    Label {
+      text: hs.welcomeMsg
+      Layout.alignment: Qt.AlignHCenter | Qt.AlignVCenter
+    }
+
+    RowLayout {
+      Layout.fillWidth: true
+      id: row
+      spacing: 6
+
+
+      Button {
+        id: button
+        text: "-"
+        Layout.alignment: Qt.AlignHCenter | Qt.AlignVCenter
+        onClicked: hs.decrement()
+      }
+      Label {
+        Layout.fillWidth: true
+        id: label
+        horizontalAlignment: Text.AlignHCenter
+        text: "Value is: " + parseInt(hs.counter)
+      }
+
+      Button {
+        id: button1
+        text: "+"
+        Layout.alignment: Qt.AlignHCenter | Qt.AlignVCenter
+        onClicked: hs.increment()
+      }
+    }
+  }
 }
 
