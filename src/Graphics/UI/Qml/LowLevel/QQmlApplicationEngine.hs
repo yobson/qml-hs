@@ -9,6 +9,7 @@ import qualified Data.ByteString as BS
 import qualified Foreign.Concurrent as F
 import Graphics.UI.Qml.LowLevel.QApplication
 import Graphics.UI.Qml.LowLevel.QVariant
+import Graphics.UI.Qml.LowLevel.QUrl
 
 import Foreign.ForeignPtr
 import Foreign.Ptr
@@ -38,6 +39,14 @@ loadQmlRaw ae file =
 
 loadQml :: QmlAppEngine -> FilePath -> IO ()
 loadQml ae path = BS.readFile path >>= loadQmlRaw ae
+
+addImportPath :: QmlAppEngine -> FilePath -> IO ()
+addImportPath ctx path = withCString path $ Raw.addImportPath ctx
+
+loadResource :: QmlAppEngine -> String -> IO ()
+loadResource ctx url = do
+  url' <- stringToQUrl url
+  withForeignPtr url' $ Raw.loadUrl ctx
 
 setContextProperty :: (IsQVariant a) => QmlAppEngine -> String -> a -> IO ()
 setContextProperty eng key val = do

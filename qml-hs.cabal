@@ -39,6 +39,7 @@ library
                       Graphics.UI.Qml.LowLevel.QQmlApplicationEngine
                       Graphics.UI.Qml.LowLevel.QMetaObject
                       Graphics.UI.Qml.LowLevel.QObject
+                      Graphics.UI.Qml.LowLevel.QUrl
     exposed-modules:  Graphics.UI.Qml
     build-depends:    base <5,
                       bytestring,
