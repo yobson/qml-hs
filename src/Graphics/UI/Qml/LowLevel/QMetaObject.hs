@@ -109,9 +109,8 @@ newSlotDef echan (VSlot slot@(Slot name t _)) = do
 
 newPropSlotDef :: Prop -> IO Raw.SlotDefinition
 newPropSlotDef (Prop n v) = do
-  cname <- newCString $ "get" <> n
+  cname <- newCString n
   pParams <- mallocArray 0
-  --pDef <- newParameterDef 39
   pokeArray pParams []
   return $ Raw.SlotDefinition cname (metaType v) 0 pParams
 
@@ -128,7 +127,6 @@ newSignalDef qo (Prop name val) = do
       newVal <- atomically $ readTChan argChan
       withForeignPtr newVal $ \v -> do
         pokeArray arr [v]
-        putStrLn $ "New value for: " <> name
         q <- readTVarIO qo
         Q.signalEmit q notifyName 1 arr
       loop
@@ -138,7 +136,7 @@ newPropertyDef :: Prop -> IO Raw.PropertyDefinition
 newPropertyDef (Prop name v) = do
   propName <- newCString name
   propNoti <- newCString $ "notify" <> name
-  propGet  <- newCString $ "get" <> name
+  propGet  <- newCString name
   let propMt = metaType v
   return $ Raw.PropertyDefinition propName propMt propGet nullPtr propNoti
 
@@ -164,7 +162,7 @@ newQMetaObject vmap echan name props slots = do
   pRawSlotDefs <- malloc
   pRawPropDefs <- malloc
   poke pRawSigsDefs $ Raw.SignalDefinitions (fromIntegral $ length sigsDefs) sigsBuffer
-  poke pRawSlotDefs $ Raw.SlotDefinitions (fromIntegral count) slotBuffer
+  poke pRawSlotDefs $ Raw.SlotDefinitions (fromIntegral $ count + length propDefs ) slotBuffer
   poke pRawPropDefs $ Raw.PropertyDefinitions (fromIntegral $ length propDefs) propBuffer
   cname <- newCString name
   staticMetaObject <- Q.qMetaObject
@@ -172,6 +170,7 @@ newQMetaObject vmap echan name props slots = do
   fptr <- F.newForeignPtr ptr (Raw.delete ptr)
   F.addForeignPtrFinalizer fptr $ do
     mapM_ (free . Raw.sltParameters) slotDefs
+    mapM_ (free . Raw.sltParameters) propSlots
     mapM_ (free . Raw.sdParameterDefinition) sigsDefs
     free pRawSigsDefs
     free pRawSlotDefs

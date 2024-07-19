@@ -67,7 +67,7 @@ type DosQMetaObjectInvokeMethodCallback = FunPtr (Ptr () -> IO ())
 data DosQVariantArray = DosQVariantArray
     { dqvaSize :: CInt
     , dqvaData :: Ptr (Ptr DosQVariant)
-    }
+    } deriving Show
 
 instance Storable DosQVariantArray where
     sizeOf ~_ = (#size struct DosQVariantArray)
@@ -89,7 +89,7 @@ data QmlRegisterType = QmlRegisterType
     , qrtStaticMetaObject :: Ptr DosQMetaObject
     , qrtCreateDObject    :: CreateDObject
     , qrtDeleteDObject    :: DeleteDObject
-    }
+    } deriving Show
 
 instance Storable QmlRegisterType where
     sizeOf ~_ = (#size struct QmlRegisterType)
@@ -116,7 +116,7 @@ instance Storable QmlRegisterType where
 data ParameterDefinition = ParameterDefinition
     { pdName     :: CString
     , pdMetaType :: CInt
-    }
+    } deriving Show
 
 instance Storable ParameterDefinition where
     sizeOf    ~_ = (#size struct ParameterDefinition)
@@ -134,7 +134,7 @@ data SignalDefinition = SignalDefinition
     { sdName                :: CString
     , sdParametersCount     :: CInt
     , sdParameterDefinition :: Ptr ParameterDefinition
-    }
+    } deriving Show
 
 instance Storable SignalDefinition where
     sizeOf    ~_ = (#size struct SignalDefinition)
@@ -153,7 +153,7 @@ instance Storable SignalDefinition where
 data SignalDefinitions = SignalDefinitions
     { sigCount       :: CInt
     , sigDefinitions :: Ptr SignalDefinition
-    }
+    } deriving Show
 
 instance Storable SignalDefinitions where
     sizeOf    ~_ = (#size struct SignalDefinitions)
@@ -173,7 +173,7 @@ data SlotDefinition = SlotDefinition
     , sltReturnMetaType  :: CInt
     , sltParametersCount :: CInt
     , sltParameters      :: Ptr ParameterDefinition
-    }
+    } deriving Show
 
 instance Storable SlotDefinition where
     sizeOf    ~_ = (#size struct SlotDefinition)
@@ -194,7 +194,7 @@ instance Storable SlotDefinition where
 data SlotDefinitions = SlotDefinitions
     { sltCount       :: CInt
     , sltDefinitions :: Ptr SlotDefinition
-    }
+    } deriving Show
 
 instance Storable SlotDefinitions where
     sizeOf    ~_ = (#size struct SlotDefinitions)
@@ -215,7 +215,7 @@ data PropertyDefinition = PropertyDefinition
     , propReadSlot         :: CString
     , propWriteSlot        :: CString
     , propNotifySignal     :: CString
-    }
+    } deriving Show
 
 instance Storable PropertyDefinition where
     sizeOf    ~_ = (#size struct PropertyDefinition)
@@ -238,7 +238,7 @@ instance Storable PropertyDefinition where
 data PropertyDefinitions = PropertyDefinitions
     { propCount       :: CInt
     , propDefinitions :: Ptr PropertyDefinition
-    }
+    } deriving Show
 
 instance Storable PropertyDefinitions where
     sizeOf    ~_ = (#size struct PropertyDefinitions)
@@ -265,7 +265,7 @@ data DosQAbstractItemModelCallbacks = DosQAbstractItemModelCallbacks
     , hasChildren  :: HasChildrenCallback
     , canFetchMore :: CanFetchMoreCallback
     , fetchMore    :: FetchMoreCallback
-    }
+    } deriving Show
 
 instance Storable DosQAbstractItemModelCallbacks where
     sizeOf    ~_ = (#size struct DosQAbstractItemModelCallbacks)

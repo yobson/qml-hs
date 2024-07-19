@@ -27,6 +27,7 @@ import Control.Monad.State
 import Control.Concurrent
 import Control.Concurrent.STM
 import qualified Data.Map as Map
+import Control.Applicative
 
 import Foreign.ForeignPtr
 
@@ -43,9 +44,10 @@ newtype QObject e a = QObj { runQObject :: State (QViewModel e) a }
   deriving (Functor,Applicative,Monad,MonadState (QViewModel e))
 
 data App e s = QmlApp
-  { qmlFile      :: FilePath
-  , appUpdate    :: e -> Qml s ()
-  , appViewModel :: s -> QViewModel e
+  { qmlFile        :: FilePath
+  , appUpdate      :: e -> Qml s ()
+  , appViewModel   :: s -> QViewModel e
+  , externalEvents :: Maybe (TChan e)
   }
 
 mkPropsMap :: [Prop] -> IO (Map.Map String (TVar QVariant))
@@ -53,10 +55,10 @@ mkPropsMap props = Map.fromList <$> mapM go props
   where go (Prop n v) = do
               var <- toQVarient v
               tvar <- newTVarIO var
-              return ("get" <> n, tvar)
+              return (n, tvar)
 
-runQApplication :: (Show s) => App e s -> s -> IO ()
-runQApplication (QmlApp qf qu qvm) i = do
+runQApplication :: App e s -> s -> IO ()
+runQApplication (QmlApp qf qu qvm custom) i = do
   let vm@(QViewModel name slts props _) = qvm i
   eChan <- atomically newTChan
   pm <- mkPropsMap props
@@ -72,18 +74,21 @@ runQApplication (QmlApp qf qu qvm) i = do
   loadQml ctx qf
 
   _ <- forkIO $ fix $ \loop -> do
-    e <- atomically $ readTChan eChan
+    e <- atomically $ readTChan eChan <|> maybe empty readTChan custom
     stt <- readTVarIO st
     newSt <- execStateT (qu e) stt
-    print newSt
     atomically $ writeTVar st newSt
     oldVm <- readTVarIO lastVm
     let newVm = qvm newSt
         propM = propMap metaObj
     diff <- diffViewModels oldVm newVm
-    forM_ diff $ \(n, newVal) -> do
+    atomically $ writeTVar lastVm newVm
+    forM_ diff $ \(n, newVal) -> atomically $ do
+      case Map.lookup n pm of
+        Just chan -> writeTVar chan newVal
+        Nothing -> return ()
       case Map.lookup n propM of
-        Just chan -> atomically $ writeTChan chan newVal
+        Just chan -> writeTChan chan newVal
         Nothing -> return ()
     loop
 
