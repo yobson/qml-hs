@@ -51,7 +51,7 @@ loadResource ctx url = do
 setContextProperty :: (IsQVariant a) => QmlAppEngine -> String -> a -> IO ()
 setContextProperty eng key val = do
     ctx <- Raw.context eng
-    var <- toQVarient val
+    var <- toQVariant val
     withCString key $ \propName ->
         withForeignPtr var $ \rawVar ->
         Raw.setContextProperty ctx propName rawVar

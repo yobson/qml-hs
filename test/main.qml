@@ -5,7 +5,7 @@ import QtQuick.Controls
 Window {
   visible: true
   width: 300
-  height: 100
+  height: 200
   title: "Example"
 
   ColumnLayout {
@@ -62,6 +62,12 @@ Window {
         text: "+"
         Layout.alignment: Qt.AlignHCenter | Qt.AlignVCenter
         onClicked: hs.increment()
+      }
+    }
+    Repeater {
+      model: hs.fun
+      Label {
+        text: modelData
       }
     }
   }

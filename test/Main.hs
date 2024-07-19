@@ -13,13 +13,14 @@ data Event = Incr | Decr | Welcome String Int | Nop
 viewController :: State -> QViewModel Event
 viewController (count, msg) = rootObject "hs" $ do
   qProperty "counter" count
-  qProperty "welcomeMsg" msg
+  qProperty @String "welcomeMsg" msg
   qSlot "increment" (CType @'[])
     (return Incr)
   qSlot "decrement" (CType @'[])
     (return Decr)
   qSlot "welcome" (CType @[String, Int])
     (\name age -> return $ Welcome name age)
+  qProperty @[Int] "fun" [1,2,3]
 
 
 update :: Event -> Qml State ()

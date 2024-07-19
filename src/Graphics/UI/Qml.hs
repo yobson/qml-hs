@@ -55,7 +55,7 @@ data App e s = QmlApp
 mkPropsMap :: [Prop] -> IO (Map.Map String (TVar QVariant))
 mkPropsMap prps = Map.fromList <$> mapM go prps
   where go (Prop n v) = do
-              var <- toQVarient v
+              var <- toQVariant v
               tvar <- newTVarIO var
               return (n, tvar)
 
@@ -106,7 +106,7 @@ diffViewModels (QViewModel _ _ ((Prop n v1):xs) _) (QViewModel _ _ ((Prop _ v2):
      then diffViewModels (QViewModel "" [] xs []) (QViewModel "" [] ys [])
      else do
       nxt <- diffViewModels (QViewModel "" [] xs []) (QViewModel "" [] ys [])
-      v <- toQVarient v2
+      v <- toQVariant v2
       return $ (n,v) : nxt
 diffViewModels _ _ = return []
 

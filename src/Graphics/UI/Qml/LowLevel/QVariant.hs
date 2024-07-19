@@ -1,9 +1,18 @@
-{-# LANGUAGE FlexibleInstances, ScopedTypeVariables #-}
+{-# LANGUAGE DataKinds #-}
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE TypeApplications #-}
 
 module Graphics.UI.Qml.LowLevel.QVariant where
 
 import Foreign.C
+import Foreign.Ptr
+import Foreign.Marshal.Array
 import Foreign.ForeignPtr
+import Data.Proxy
 
 import qualified Graphics.UI.Qml.Internal.QVariant as Raw
 import qualified Graphics.UI.Qml.Internal.String as DS
@@ -11,42 +20,62 @@ import qualified Graphics.UI.Qml.Internal.Types as Raw
 
 type QVariant = ForeignPtr Raw.DosQVariant
 
+type family (IsList a) :: Bool where
+  IsList Char  = 'False
+  IsList Int     = 'True
+  IsList Bool    = 'True
+  IsList CString = 'True
+  IsList QVariant = 'True
+
 class IsQVariant a where
     fromQVariant :: QVariant -> IO a
-    toQVarient :: a -> IO QVariant
+    unsafeToQVariant :: a -> IO (Ptr Raw.DosQVariant)
+    toQVariant :: a -> IO QVariant
+    toQVariant x = unsafeToQVariant x >>= newForeignPtr Raw.finalizer
     setQVarient :: QVariant -> a -> IO ()
     metaType :: a -> CInt
+
+instance (IsList a ~ flag, IsQVariant' a flag) => IsQVariant [a] where
+  fromQVariant = fromQVariant' (Proxy :: Proxy flag)
+  unsafeToQVariant = unsafeToQVariant' (Proxy :: Proxy flag)
+  toQVariant = toQVariant' (Proxy :: Proxy flag)
+  setQVarient = setQVarient' (Proxy :: Proxy flag)
+  metaType = metaType' (Proxy :: Proxy flag)
+
+class IsQVariant' a (flag :: Bool) where
+    fromQVariant' :: Proxy flag -> QVariant -> IO [a]
+    unsafeToQVariant' :: Proxy flag -> [a] -> IO (Ptr Raw.DosQVariant)
+    toQVariant' :: Proxy flag -> [a] -> IO QVariant
+    toQVariant' p x = unsafeToQVariant' p x >>= newForeignPtr Raw.finalizer
+    setQVarient' :: Proxy flag -> QVariant -> [a] -> IO ()
+    metaType' :: Proxy flag -> [a] -> CInt
 
 instance IsQVariant CString where
     fromQVariant var = withForeignPtr var $ \ptr -> do
       Raw.toString ptr
 
-    toQVarient str = do
-        ptr <- Raw.createString str
-        newForeignPtr Raw.finalizer ptr
+    unsafeToQVariant = Raw.createString
 
     setQVarient var str = withForeignPtr var $ \ptr ->
         Raw.setString ptr str
     metaType _ = 10
 
-instance IsQVariant String where
-    fromQVariant var = do
+instance IsQVariant' Char 'False where
+    fromQVariant' _ var = do
       cstr <- fromQVariant var
       str <- peekCString cstr
       DS.delete cstr
       return str
 
-    toQVarient str = withCString str toQVarient
-    setQVarient var str = withCString str $ \cstr ->
+    unsafeToQVariant' _ str = withCString str unsafeToQVariant
+    setQVarient' _ var str = withCString str $ \cstr ->
         setQVarient var cstr
-    metaType _ = 10
+    metaType' _ _ = 10
 
 instance IsQVariant Int where
     fromQVariant var = fromIntegral <$> withForeignPtr var Raw.toInt
 
-    toQVarient cint = do
-        ptr <- Raw.createInt $ fromIntegral cint
-        newForeignPtr Raw.finalizer ptr
+    unsafeToQVariant = Raw.createInt . fromIntegral
 
     setQVarient var cint = withForeignPtr var $ \ptr ->
         Raw.setInt ptr $ fromIntegral cint
@@ -55,9 +84,7 @@ instance IsQVariant Int where
 instance IsQVariant CBool where
     fromQVariant var = withForeignPtr var Raw.toBool
 
-    toQVarient b = do
-        ptr <- Raw.createBool b
-        newForeignPtr Raw.finalizer ptr
+    unsafeToQVariant = Raw.createBool
 
     setQVarient var b = withForeignPtr var $ \ptr ->
         Raw.setBool ptr b
@@ -66,12 +93,32 @@ instance IsQVariant CBool where
 instance IsQVariant QVariant where
   fromQVariant = return
 
-  toQVarient = return 
+  toQVariant = return 
+  unsafeToQVariant _ = error "Will break garbage collector"
 
   setQVarient var b = withForeignPtr var $ \ptr ->
     withForeignPtr b $ \other ->
       Raw.assign ptr other
   metaType _ = 41
+
+instance (IsQVariant a) => IsQVariant' a 'True where
+  metaType' _ _ = 9
+
+  fromQVariant' = undefined
+
+  unsafeToQVariant' _ x = do
+    varX <- mapM unsafeToQVariant x
+    buff <- mallocForeignPtrArray (length x)
+    withForeignPtr buff $ \ubuff -> do
+      pokeArray ubuff varX
+      Raw.createArray (fromIntegral $ length x) ubuff
+
+  setQVarient' _ var x = withForeignPtr var $ \ptr -> do
+    varX <- mapM unsafeToQVariant x
+    buff <- mallocForeignPtrArray (length x)
+    withForeignPtr buff $ \ubuff -> do
+      pokeArray ubuff varX
+      Raw.setArray ptr ubuff
 
 sameVar :: (IsQVariant a, IsQVariant b) => a -> b -> IO Bool
 sameVar x y = do
@@ -81,16 +128,16 @@ sameVar x y = do
      then return False
      else case mx of
             2 -> do
-              (sx :: Int) <- toQVarient x >>= fromQVariant
-              (sy :: Int) <- toQVarient y >>= fromQVariant
+              (sx :: Int) <- toQVariant x >>= fromQVariant
+              (sy :: Int) <- toQVariant y >>= fromQVariant
               return (sx == sy)
             1 -> do
-              (sx :: Bool) <- toQVarient x >>= fromQVariant
-              (sy :: Bool) <- toQVarient y >>= fromQVariant
+              (sx :: Bool) <- toQVariant x >>= fromQVariant
+              (sy :: Bool) <- toQVariant y >>= fromQVariant
               return (sx == sy)
             _ -> do
-              (sx :: String) <- toQVarient x >>= fromQVariant
-              (sy :: String) <- toQVarient y >>= fromQVariant
+              (sx :: String) <- toQVariant x >>= fromQVariant @String
+              (sy :: String) <- toQVariant y >>= fromQVariant
               return (sx == sy)
 
 bool2cbool :: Bool -> CBool
@@ -101,10 +148,10 @@ cbool2bool :: CBool -> Bool
 cbool2bool 0 = False
 cbool2bool _ = True
 
-instance IsQVariant Bool where
+instance IsQVariant Bool  where
     fromQVariant var = cbool2bool <$> fromQVariant var
 
-    toQVarient = toQVarient . bool2cbool
+    unsafeToQVariant = unsafeToQVariant . bool2cbool
 
     setQVarient var = setQVarient var . bool2cbool
     metaType _ = 1
