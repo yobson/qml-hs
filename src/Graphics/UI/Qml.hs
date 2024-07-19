@@ -1,4 +1,5 @@
-{-# LANGUAGE StrictData, FlexibleInstances, ScopedTypeVariables, PolyKinds, DataKinds, TypeApplications, MultiParamTypeClasses, TypeFamilies, GADTs, GeneralisedNewtypeDeriving, TypeOperators #-}
+{-# LANGUAGE StrictData, FlexibleInstances, ScopedTypeVariables, PolyKinds, DataKinds #-}
+{-# LANGUAGE MultiParamTypeClasses, TypeFamilies, GADTs, GeneralisedNewtypeDeriving #-}
 {-# LANGUAGE RankNTypes #-}
 
 module Graphics.UI.Qml
@@ -38,9 +39,10 @@ data QViewModel e = QViewModel
   , objs  :: [QViewModel e]
   }
 
+-- | A monad which is @MonadState s@ and @MonadIO@
 type Qml s a = StateT s IO a
 
-newtype QObject e a = QObj { runQObject :: State (QViewModel e) a }
+newtype QObject e a = QObj (State (QViewModel e) a)
   deriving (Functor,Applicative,Monad,MonadState (QViewModel e))
 
 data App e s = QmlApp
@@ -51,7 +53,7 @@ data App e s = QmlApp
   }
 
 mkPropsMap :: [Prop] -> IO (Map.Map String (TVar QVariant))
-mkPropsMap props = Map.fromList <$> mapM go props
+mkPropsMap prps = Map.fromList <$> mapM go prps
   where go (Prop n v) = do
               var <- toQVarient v
               tvar <- newTVarIO var
@@ -59,18 +61,18 @@ mkPropsMap props = Map.fromList <$> mapM go props
 
 runQApplication :: App e s -> s -> IO ()
 runQApplication (QmlApp qf qu qvm custom) i = do
-  let vm@(QViewModel name slts props _) = qvm i
+  let vm = qvm i
   eChan <- atomically newTChan
-  pm <- mkPropsMap props
+  pm <- mkPropsMap $ props vm
   st <- newTVarIO i
   lastVm <- newTVarIO vm
-  metaObj <- newQMetaObject pm eChan name props slts
-  qobj <- Q.newQObject name metaObj
+  metaObj <- newQMetaObject pm eChan (objName vm) (props vm) (slots vm)
+  qobj <- Q.newQObject (objName vm) metaObj
   qobjv <- Q.objToVariant qobj
   app <- initQApplication
   ctx <- newQmlAppEngine app
 
-  setContextProperty ctx name qobjv
+  setContextProperty ctx (objName vm) qobjv
   loadQml ctx qf
 
   _ <- forkIO $ fix $ \loop -> do
@@ -113,15 +115,15 @@ rootObject name (QObj st) = execState st (QViewModel name [] [] [])
 
 qObject :: String -> QObject e a -> QObject e ()
 qObject name obj = do
-  (QViewModel n s p o) <- get
-  put $ QViewModel n s p (rootObject name obj : o)
+  vm <- get
+  put $ vm{objs = rootObject name obj : objs vm}
 
 qSlot :: (IsQMetaType ty) => String -> CType ty -> TySig e ty -> QObject e ()
 qSlot name ty cb = do
-  (QViewModel n s p o) <- get
-  put $ QViewModel n (VSlot (Slot name ty cb):s) p o
+  vm <- get
+  put $ vm{slots = VSlot (Slot name ty cb) : slots vm}
 
 qProperty :: (IsQVariant a) => String -> a -> QObject e ()
 qProperty name val = do
-  (QViewModel n s p o) <- get
-  put $ QViewModel n s (Prop name val:p) o
+  vm <- get
+  put $ vm{props = Prop name val : props vm}

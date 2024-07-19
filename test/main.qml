@@ -10,10 +10,10 @@ import QtQuick.Layouts
 import QtQuick.Controls
 
 Window {
-    width: Constants.width
-    height: Constants.height
-    
     visible: true
+    width: 200
+    height: 55
+    title: "Example"
     
     RowLayout {
         id: row

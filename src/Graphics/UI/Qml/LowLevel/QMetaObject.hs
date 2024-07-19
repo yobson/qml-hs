@@ -98,7 +98,7 @@ newSlotDef echan (VSlot slot@(Slot name t _)) = do
   argChan <- atomically newTChan
   retChan <- atomically newTChan
   let m = Map.singleton name (argChan, retChan)
-  _ <- forkIO $ fix $ \loop -> do
+  forkIO $ fix $ \loop -> do
     args <- atomically $ readTChan argChan
     e <- invoke slot args
     atomically $ do
@@ -121,7 +121,7 @@ newSignalDef qo (Prop name val) = do
   pokeArray pparam [param]
   notifyName <- newCString $ "notify" <> name
   argChan <- atomically newTChan
-  _ <- forkIO $ do
+  forkIO $ do
     arr <- mallocArray 1
     fix $ \loop -> do
       newVal <- atomically $ readTChan argChan

@@ -8,11 +8,11 @@ build-type:      Simple
 extra-doc-files: CHANGELOG.md
 
 common warnings
-    ghc-options: -Wall
+    ghc-options: -Wall -Wno-unused-do-bind
 
 library
     import:           warnings
-    exposed-modules:  Graphics.UI.Qml.Internal.Types
+    other-modules:  Graphics.UI.Qml.Internal.Types
                       Graphics.UI.Qml.Internal.QGuiApplication
                       Graphics.UI.Qml.Internal.QApplication
                       Graphics.UI.Qml.Internal.QQmlApplicationEngine
@@ -39,7 +39,7 @@ library
                       Graphics.UI.Qml.LowLevel.QQmlApplicationEngine
                       Graphics.UI.Qml.LowLevel.QMetaObject
                       Graphics.UI.Qml.LowLevel.QObject
-                      Graphics.UI.Qml
+    exposed-modules:  Graphics.UI.Qml
     build-depends:    base <5,
                       bytestring,
                       mtl,

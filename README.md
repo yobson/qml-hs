@@ -19,8 +19,8 @@ Libs: -L${libdir} -lDOtherSide -Wl,-rpath,/opt/homebrew/lib
 Cflags: -I${includedir}/DOtherSide -I${includedir}
 ```
 
-Then everything worked
-
 ## What is implemented
 - Complete raw bindings to dotherside
 - The beginings of a simple interface to use those bindings
+
+It is very very rough around the edges, and some of the code is of serious poor quality. But it somewhat works!
