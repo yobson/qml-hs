@@ -1,6 +1,6 @@
 {-# LANGUAGE StrictData, FlexibleInstances, ScopedTypeVariables, PolyKinds, DataKinds #-}
 {-# LANGUAGE MultiParamTypeClasses, TypeFamilies, GADTs, GeneralisedNewtypeDeriving #-}
-{-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE RankNTypes, TupleSections #-}
 
 module Graphics.UI.Qml
 ( App(..)
@@ -97,18 +97,27 @@ runQApplication (QmlApp qf qu qvm custom) i = do
   execQApplication app
   touchForeignPtr $ Q.rawObj qobj
 
--- Completely Stupid
+lookupProp :: String -> [Prop] -> Maybe Prop
+lookupProp _ [] = Nothing
+lookupProp n (p@(Prop pn _):xs) | n == pn   = Just p
+                                | otherwise = lookupProp n xs
+
+-- TODO: Not very performant
 diffViewModels :: QViewModel e -> QViewModel e -> IO [(String, QVariant)]
-diffViewModels (QViewModel _ _ [] _) (QViewModel _ _ [] _) = return []
-diffViewModels (QViewModel _ _ ((Prop n v1):xs) _) (QViewModel _ _ ((Prop _ v2):ys) _) = do 
-  theSame <- sameVar v1 v2
-  if theSame 
-     then diffViewModels (QViewModel "" [] xs []) (QViewModel "" [] ys [])
-     else do
-      nxt <- diffViewModels (QViewModel "" [] xs []) (QViewModel "" [] ys [])
-      v <- toQVariant v2
-      return $ (n,v) : nxt
-diffViewModels _ _ = return []
+diffViewModels (QViewModel _ _ [] _) QViewModel{} = return []
+diffViewModels (QViewModel _ _ ((Prop n v1):xs) _) (QViewModel _ _ ps _) = do 
+  d <- case lookupProp n ps of
+    Nothing -> (:[]) . (n,) <$> toQVariant ""
+    Just (Prop _ v2) -> do
+      theSame <- sameVar v1 v2
+      if theSame 
+         then return []
+         else do
+          v <- toQVariant v2
+          return [(n,v)]
+  nxt <- diffViewModels (QViewModel [] [] xs []) (QViewModel [] [] ps [])
+  return $ d <> nxt
+
 
 rootObject :: String -> QObject e a -> QViewModel e
 rootObject name (QObj st) = execState st (QViewModel name [] [] [])
@@ -123,7 +132,7 @@ qSlot name ty cb = do
   vm <- get
   put $ vm{slots = VSlot (Slot name ty cb) : slots vm}
 
-qProperty :: (IsQVariant a) => String -> a -> QObject e ()
+qProperty :: (Eq a, IsQVariant a) => String -> a -> QObject e ()
 qProperty name val = do
   vm <- get
   put $ vm{props = Prop name val : props vm}

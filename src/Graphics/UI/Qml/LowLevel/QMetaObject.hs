@@ -67,7 +67,7 @@ data Slot ty e where
 
 data VSlot e = forall ty . IsQMetaType ty => VSlot (Slot ty e)
 
-data Prop = forall a . (IsQVariant a) => Prop String a
+data Prop = forall a . (Eq a, IsQVariant a) => Prop String a
 
 type CallBackMap = Map.Map String (TChan [Ptr Raw.DosQVariant], TChan ())
 

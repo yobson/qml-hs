@@ -4,15 +4,16 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
-{-# LANGUAGE TypeApplications #-}
 
 module Graphics.UI.Qml.LowLevel.QVariant where
 
 import Foreign.C
 import Foreign.Ptr
+import Foreign.Storable
 import Foreign.Marshal.Array
 import Foreign.ForeignPtr
 import Data.Proxy
+import Control.Monad
 
 import qualified Graphics.UI.Qml.Internal.QVariant as Raw
 import qualified Graphics.UI.Qml.Internal.String as DS
@@ -104,7 +105,14 @@ instance IsQVariant QVariant where
 instance (IsQVariant a) => IsQVariant' a 'True where
   metaType' _ _ = 9
 
-  fromQVariant' = undefined
+  fromQVariant' _ var = withForeignPtr var $ \ptr -> do
+    arr <- Raw.toArray ptr
+    vararr <- peek arr
+    out <- peekArray (fromIntegral $ Raw.dqvaSize vararr) (Raw.dqvaData vararr)
+    Raw.deleteArray arr
+    forM out $ \qptr -> do
+      qvar <- newForeignPtr_ qptr
+      fromQVariant qvar
 
   unsafeToQVariant' _ x = do
     varX <- mapM unsafeToQVariant x
@@ -120,24 +128,15 @@ instance (IsQVariant a) => IsQVariant' a 'True where
       pokeArray ubuff varX
       Raw.setArray ptr ubuff
 
-sameVar :: (IsQVariant a, IsQVariant b) => a -> b -> IO Bool
+sameVar :: forall a b . (Eq a, IsQVariant a, IsQVariant b) => a -> b -> IO Bool
 sameVar x y = do
   let mx = metaType x
       my = metaType y
   if mx /= my 
      then return False
-     else case mx of
-            2 -> do
-              (sx :: Int) <- toQVariant x >>= fromQVariant
-              (sy :: Int) <- toQVariant y >>= fromQVariant
-              return (sx == sy)
-            1 -> do
-              (sx :: Bool) <- toQVariant x >>= fromQVariant
-              (sy :: Bool) <- toQVariant y >>= fromQVariant
-              return (sx == sy)
-            _ -> do
-              (sx :: String) <- toQVariant x >>= fromQVariant @String
-              (sy :: String) <- toQVariant y >>= fromQVariant
+     else do
+              (sx :: a) <- toQVariant x >>= fromQVariant
+              (sy :: a) <- toQVariant y >>= fromQVariant
               return (sx == sy)
 
 bool2cbool :: Bool -> CBool

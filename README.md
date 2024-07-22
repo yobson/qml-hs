@@ -25,6 +25,13 @@ Cflags: -I${includedir}/DOtherSide -I${includedir}
 
 It is very very rough around the edges, and some of the code is of serious poor quality. But it somewhat works!
 
+### Todo list:
+- [ ] Get nested QObjects working
+- [ ] Clean up QObjects as QVariants
+- [ ] Workout how to load QResources so that you can split the QML between multiple files
+- [ ] Look for memory leaks (At this point the allocations won't change much)
+- [ ] Faster diffing algorithm
+
 ## Where are the docs?
 Given that the interface is subject to change, I have not documented. Look at `test/Main.hs` and `test/main.qml` for example.
 We warned that QObjects in QObjects is not yet implemented. You can basically only use `qProperty` and `qSlot` as of now.
