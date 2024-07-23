@@ -15,6 +15,7 @@ import Graphics.UI.Qml.LowLevel.QUrl
 import Foreign.ForeignPtr
 import Foreign.Ptr
 import Foreign.C
+import System.Directory
 
 type QmlAppEngine = Ptr Raw.DosQQmlApplicationEngine
 
@@ -46,7 +47,8 @@ addImportPath ctx path = withCString path $ Raw.addImportPath ctx
 
 loadResource :: QmlAppEngine -> FilePath -> [String] -> String -> IO ()
 loadResource ctx fp importList url = do
-  withCString fp Raw.register
+  afp <- makeAbsolute fp
+  withCString afp Raw.register
   mapM_ (addImportPath ctx) importList
   url' <- stringToQUrl url
   withForeignPtr url' $ Raw.loadUrl ctx

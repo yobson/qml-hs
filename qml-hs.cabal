@@ -46,7 +46,8 @@ library
                       mtl,
                       stm,
                       containers,
-                      aeson
+                      aeson,
+                      directory
     build-tool-depends: hsc2hs:hsc2hs
     pkgconfig-depends:  DOtherSide
     hs-source-dirs:   src
