@@ -2,6 +2,7 @@
 module Graphics.UI.Qml.LowLevel.QQmlApplicationEngine where
 
 import qualified Graphics.UI.Qml.Internal.QQmlApplicationEngine as Raw
+import qualified Graphics.UI.Qml.Internal.QResource as Raw
 import qualified Graphics.UI.Qml.Internal.QQmlContext as Raw
 import qualified Graphics.UI.Qml.Internal.Types as Raw
 
@@ -43,8 +44,10 @@ loadQml ae path = BS.readFile path >>= loadQmlRaw ae
 addImportPath :: QmlAppEngine -> FilePath -> IO ()
 addImportPath ctx path = withCString path $ Raw.addImportPath ctx
 
-loadResource :: QmlAppEngine -> String -> IO ()
-loadResource ctx url = do
+loadResource :: QmlAppEngine -> FilePath -> [String] -> String -> IO ()
+loadResource ctx fp importList url = do
+  withCString fp Raw.register
+  mapM_ (addImportPath ctx) importList
   url' <- stringToQUrl url
   withForeignPtr url' $ Raw.loadUrl ctx
 

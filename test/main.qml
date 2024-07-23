@@ -64,12 +64,6 @@ Window {
         onClicked: hs.increment()
       }
     }
-    Repeater {
-      model: JSON.parse(hs.obj)
-      Label {
-        text: modelData.prop2
-      }
-    }
   }
 }
 

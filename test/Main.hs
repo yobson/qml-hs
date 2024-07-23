@@ -63,7 +63,8 @@ main = do
     loop
 
   let app = QmlApp
-        { qmlFile = "test/main.qml"
+        { -- Example loading project from qt designer: { qmlFile = QRC "/Users/jameshobson/gits/qml-hs/test/Project.qmlrc" [":/imports"] "qrc:/Project.qml"
+          qmlFile = QmlFile "test/main.qml"
         , appUpdate = update
         , appViewModel = viewController
         , externalEvents = Just eChan

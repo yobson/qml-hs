@@ -9,6 +9,7 @@ module Graphics.UI.Qml
 , CType(..)
 , Qml
 , JsonData(..)
+, QmlFile(..)
 , modify
 , get
 , put
@@ -55,8 +56,10 @@ type Qml s a = StateT s IO a
 newtype QObject e a = QObj (State (QViewModel e) a)
   deriving (Functor,Applicative,Monad,MonadState (QViewModel e))
 
+data QmlFile = QmlFile FilePath | QRC FilePath [String] String
+
 data App e s = QmlApp
-  { qmlFile        :: FilePath
+  { qmlFile        :: QmlFile
   , appUpdate      :: e -> Qml s ()
   , appViewModel   :: s -> QViewModel e
   , externalEvents :: Maybe (TChan e)
@@ -156,7 +159,10 @@ runQApplication (QmlApp qf qu qvm custom) i = do
   ctx <- newQmlAppEngine app
 
   setContextProperty ctx (objName vm) qobjv
-  loadQml ctx qf
+  case qf of
+    QmlFile file -> loadQml ctx file
+    QRC file imports url -> do
+      loadResource ctx file imports url
 
   forkIO $ fix $ \loop -> do
     e <- atomically $ readTChan eChan <|> maybe empty readTChan custom
