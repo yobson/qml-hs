@@ -67,7 +67,9 @@ data Slot ty e where
 
 data VSlot e = forall ty . IsQMetaType ty => VSlot (Slot ty e)
 
-data Prop = forall a . (Eq a, IsQVariant a) => Prop String a
+data Prop = forall a . (IsQVariant a) => Prop String a
+instance Show Prop where
+  show (Prop n v) = concat ["Prop: ", n, " type: ", show $ metaType v]
 
 type CallBackMap = Map.Map String (TChan [Ptr Raw.DosQVariant], TChan ())
 
@@ -82,6 +84,12 @@ data QMetaObject = QMetaObject
   , valsMap        :: ValsMap
   , qobjectBack    :: TVar (Ptr Raw.DosQObject)
   }
+
+keys :: Map.Map k v -> [k]
+keys = map fst . Map.toList
+
+instance Eq QMetaObject where
+  x == y = keys (callbackMap x) == keys (callbackMap y) && keys (propMap x) == keys (propMap y)
 
 newParameterDef :: CInt -> IO Raw.ParameterDefinition
 newParameterDef ty = do

@@ -7,6 +7,7 @@
 
 module Graphics.UI.Qml.LowLevel.QVariant where
 
+import Data.Aeson
 import Foreign.C
 import Foreign.Ptr
 import Foreign.Storable
@@ -18,17 +19,23 @@ import Control.Monad
 import qualified Graphics.UI.Qml.Internal.QVariant as Raw
 import qualified Graphics.UI.Qml.Internal.String as DS
 import qualified Graphics.UI.Qml.Internal.Types as Raw
+import qualified Data.ByteString as BS
+import qualified Data.ByteString.Lazy as BL
 
 type QVariant = ForeignPtr Raw.DosQVariant
 
-type family (IsList a) :: Bool where
-  IsList Char  = 'False
-  IsList Int     = 'True
-  IsList Bool    = 'True
-  IsList CString = 'True
-  IsList QVariant = 'True
+type family (IsList a) :: Bool
+type instance IsList Char  = 'False
+type instance IsList Int     = 'True
+type instance IsList Bool    = 'True
+type instance IsList CString = 'True
+type instance IsList QVariant = 'True
+type instance IsList String   = 'True
 
-class IsQVariant a where
+newtype JsonData a = JsonData a
+  deriving Eq
+
+class Eq a => IsQVariant a where
     fromQVariant :: QVariant -> IO a
     unsafeToQVariant :: a -> IO (Ptr Raw.DosQVariant)
     toQVariant :: a -> IO QVariant
@@ -36,7 +43,25 @@ class IsQVariant a where
     setQVarient :: QVariant -> a -> IO ()
     metaType :: a -> CInt
 
-instance (IsList a ~ flag, IsQVariant' a flag) => IsQVariant [a] where
+instance (Eq a, ToJSON a, FromJSON a) => IsQVariant (JsonData a) where
+  fromQVariant var = do
+    cstr <- fromQVariant var
+    bstr <- BS.packCString cstr
+    case decodeStrict bstr of
+      Just x -> return $ JsonData x
+      Nothing -> error "Can't decode json"
+
+  unsafeToQVariant (JsonData var) = do
+    BS.useAsCString (BS.toStrict $ encode var) unsafeToQVariant
+
+  setQVarient var (JsonData str) =
+    BS.useAsCString (BS.toStrict $ encode str) $ setQVarient var
+
+  metaType _ = 10
+
+
+
+instance (IsList a ~ flag, IsQVariant' a flag, Eq a) => IsQVariant [a] where
   fromQVariant = fromQVariant' (Proxy :: Proxy flag)
   unsafeToQVariant = unsafeToQVariant' (Proxy :: Proxy flag)
   toQVariant = toQVariant' (Proxy :: Proxy flag)
@@ -128,11 +153,11 @@ instance (IsQVariant a) => IsQVariant' a 'True where
       pokeArray ubuff varX
       Raw.setArray ptr ubuff
 
-sameVar :: forall a b . (Eq a, IsQVariant a, IsQVariant b) => a -> b -> IO Bool
+sameVar :: forall a b . (IsQVariant a, IsQVariant b) => a -> b -> IO Bool
 sameVar x y = do
   let mx = metaType x
       my = metaType y
-  if mx /= my 
+  if mx /= my || mx == 39 || my == 39
      then return False
      else do
               (sx :: a) <- toQVariant x >>= fromQVariant

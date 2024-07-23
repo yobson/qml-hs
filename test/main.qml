@@ -65,9 +65,9 @@ Window {
       }
     }
     Repeater {
-      model: hs.fun
+      model: JSON.parse(hs.obj)
       Label {
-        text: modelData
+        text: modelData.prop2
       }
     }
   }

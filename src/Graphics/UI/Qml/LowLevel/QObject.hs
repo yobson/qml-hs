@@ -1,4 +1,4 @@
-{-# LANGUAGE StrictData, RankNTypes #-}
+{-# LANGUAGE StrictData, RankNTypes, TypeFamilies, DataKinds #-}
 
 module Graphics.UI.Qml.LowLevel.QObject where
 
@@ -22,6 +22,9 @@ data QObject = QObject
   { metaObj :: QMetaObject
   , rawObj  :: ForeignPtr Raw.DosQObject
   }
+
+instance Eq QObject where
+  x == y = metaObj x == metaObj y
 
 objectCallback :: CallBackMap -> ValsMap -> IO Raw.DObjectCallback
 objectCallback cbm valsm = mkCallBack $ \_ slotName args vars -> do
@@ -55,6 +58,18 @@ objToVariant (QObject mo ro) = do
     touchForeignPtr $ qMetaObjectPtr mo
     QV.delete ptr
 
+instance IsQVariant QObject where
+  toQVariant = objToVariant
+  metaType _ = 39
+  unsafeToQVariant (QObject mo ro) = do
+    ptr <- QV.create
+    withForeignPtr ro $ \optr ->
+      QV.setQObject ptr optr
+    return ptr
+  fromQVariant = undefined
+  setQVarient = undefined
+
+type instance IsList QObject = 'True
 
 newQObject :: String -> QMetaObject -> IO QObject
 newQObject name qmo@(QMetaObject mo cbm _ vm qo) = withForeignPtr mo $ \o -> do
