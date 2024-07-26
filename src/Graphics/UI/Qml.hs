@@ -10,6 +10,7 @@ module Graphics.UI.Qml
 , Qml
 , JsonData(..)
 , QmlFile(..)
+, quit
 , modify
 , get
 , put
@@ -25,6 +26,7 @@ import Graphics.UI.Qml.LowLevel.QVariant
 import qualified Graphics.UI.Qml.LowLevel.QObject as Q
 import Graphics.UI.Qml.LowLevel.QMetaObject
 import Graphics.UI.Qml.LowLevel.QApplication
+import qualified Graphics.UI.Qml.Internal.QApplication as Raw
 import Graphics.UI.Qml.LowLevel.QQmlApplicationEngine
 import Control.Monad.Fix
 import Control.Monad.State
@@ -132,6 +134,9 @@ innerQObject sChan dm = do
             Nothing -> return ()
     loop
   return (dmName dm, qobj)
+
+quit :: Qml s ()
+quit = liftIO Raw.quit
 
 runQApplication :: App e s -> s -> IO ()
 runQApplication (QmlApp qf qu qvm custom) i = do
