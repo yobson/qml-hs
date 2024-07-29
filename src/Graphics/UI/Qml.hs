@@ -64,7 +64,7 @@ data App e s = QmlApp
   { qmlFile        :: QmlFile
   , appUpdate      :: e -> Qml s ()
   , appViewModel   :: s -> QViewModel e
-  , externalEvents :: Maybe (TChan e)
+  , externalEvents :: Maybe (TBQueue e)
   }
 
 mkPropsMap :: [Prop] -> IO (Map.Map String (TVar QVariant))
@@ -170,7 +170,7 @@ runQApplication (QmlApp qf qu qvm custom) i = do
       loadResource ctx file imports url
 
   forkIO $ fix $ \loop -> do
-    e <- atomically $ readTChan eChan <|> maybe empty readTChan custom
+    e <- atomically $ readTChan eChan <|> maybe empty readTBQueue custom
     stt <- readTVarIO st
     newSt <- execStateT (qu e) stt
     atomically $ writeTVar st newSt

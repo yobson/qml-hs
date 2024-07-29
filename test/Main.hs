@@ -56,10 +56,10 @@ update Nop                = return ()
 
 main :: IO ()
 main = do
-  eChan <- newTChanIO
+  eChan <- newTBQueueIO 4
   forkIO $ fix $ \loop -> do
     threadDelay 1000000
-    atomically $ writeTChan eChan Incr
+    atomically $ writeTBQueue eChan Incr
     loop
 
   let app = QmlApp
