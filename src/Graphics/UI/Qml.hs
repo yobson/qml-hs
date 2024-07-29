@@ -246,6 +246,9 @@ instance IsQProperty Bool where mkProp = mkProp'
 instance IsQProperty [Int] where mkProp = mkProp'
 instance IsQProperty [String] where mkProp = mkProp'
 instance IsQProperty [Bool] where mkProp = mkProp'
+instance IsQProperty [[Int]] where mkProp = mkProp'
+instance IsQProperty [[String]] where mkProp = mkProp'
+instance IsQProperty [[Bool]] where mkProp = mkProp'
 instance (ToJSON a, FromJSON a, Eq a) => IsQProperty (JsonData a) where mkProp = mkProp'
 
 instance IsQProperty (State QDataModel ()) where

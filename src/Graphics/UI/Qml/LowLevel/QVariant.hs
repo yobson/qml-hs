@@ -31,6 +31,11 @@ type instance IsList Bool    = 'True
 type instance IsList CString = 'True
 type instance IsList QVariant = 'True
 type instance IsList String   = 'True
+type instance IsList [Int]     = 'True
+type instance IsList [Bool]    = 'True
+type instance IsList [CString] = 'True
+type instance IsList [QVariant] = 'True
+type instance IsList [String]   = 'True
 
 newtype JsonData a = JsonData a
   deriving Eq
