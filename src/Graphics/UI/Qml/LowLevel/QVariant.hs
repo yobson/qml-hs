@@ -136,7 +136,6 @@ instance (IsQVariant a) => IsQVariant' a 'True where
   metaType' _ _ = 9
 
   fromQVariant' _ var = withForeignPtr var $ \ptr -> do
-    print ptr
     arr <- Raw.toArray ptr
     vararr <- peek arr
     out <- peekArray (fromIntegral $ Raw.dqvaSize vararr) (Raw.dqvaData vararr)
