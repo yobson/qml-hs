@@ -136,13 +136,15 @@ instance (IsQVariant a) => IsQVariant' a 'True where
   metaType' _ _ = 9
 
   fromQVariant' _ var = withForeignPtr var $ \ptr -> do
+    print ptr
     arr <- Raw.toArray ptr
     vararr <- peek arr
     out <- peekArray (fromIntegral $ Raw.dqvaSize vararr) (Raw.dqvaData vararr)
-    Raw.deleteArray arr
-    forM out $ \qptr -> do
+    ret <- forM out $ \qptr -> do
       qvar <- newForeignPtr_ qptr
       fromQVariant qvar
+    Raw.deleteArray arr
+    return ret
 
   unsafeToQVariant' _ x = do
     varX <- mapM unsafeToQVariant x
